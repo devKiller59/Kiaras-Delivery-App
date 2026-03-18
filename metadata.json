@@ -1,0 +1,7 @@
+{
+  "name": "Kiara´s Delivery App",
+  "description": "A fast-food delivery application with real-time tracking, authentication, and chat between stores, delivery personnel, and customers.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
