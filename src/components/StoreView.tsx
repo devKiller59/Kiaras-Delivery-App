@@ -5,6 +5,7 @@ import { Order, UserProfile, OrderStatus } from '../types';
 import { Clock, CheckCircle2, Package, Truck, MessageSquare, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ChatComponent from './ChatComponent';
+import { handleFirestoreError, OperationType } from '../utils';
 
 export default function StoreView({ profile }: { profile: UserProfile }) {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -21,6 +22,8 @@ export default function StoreView({ profile }: { profile: UserProfile }) {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ordersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
       setOrders(ordersData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'orders');
     });
     return () => unsubscribe();
   }, [profile.uid]);
@@ -29,7 +32,7 @@ export default function StoreView({ profile }: { profile: UserProfile }) {
     try {
       await updateDoc(doc(db, 'orders', orderId), { status });
     } catch (err) {
-      console.error("Error updating status:", err);
+      handleFirestoreError(err, OperationType.UPDATE, `orders/${orderId}`);
     }
   };
 

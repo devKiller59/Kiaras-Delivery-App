@@ -5,6 +5,7 @@ import { Order, UserProfile, OrderStatus } from '../types';
 import { Truck, MapPin, Navigation, CheckCircle2, MessageSquare, Package } from 'lucide-react';
 import { motion } from 'motion/react';
 import ChatComponent from './ChatComponent';
+import { handleFirestoreError, OperationType } from '../utils';
 
 export default function DeliveryView({ profile }: { profile: UserProfile }) {
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
@@ -21,6 +22,8 @@ export default function DeliveryView({ profile }: { profile: UserProfile }) {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ordersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
       setAvailableOrders(ordersData);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'orders');
     });
     return () => unsubscribe();
   }, []);
@@ -39,6 +42,8 @@ export default function DeliveryView({ profile }: { profile: UserProfile }) {
       } else {
         setMyOrder(null);
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'orders');
     });
     return () => unsubscribe();
   }, [profile.uid]);
@@ -51,7 +56,7 @@ export default function DeliveryView({ profile }: { profile: UserProfile }) {
         deliveryLocation: { lat: -34.6037, lng: -58.3816 } // Mock initial location
       });
     } catch (err) {
-      console.error("Error accepting order:", err);
+      handleFirestoreError(err, OperationType.UPDATE, `orders/${orderId}`);
     }
   };
 
@@ -62,7 +67,7 @@ export default function DeliveryView({ profile }: { profile: UserProfile }) {
         status: 'delivered'
       });
     } catch (err) {
-      console.error("Error completing delivery:", err);
+      handleFirestoreError(err, OperationType.UPDATE, `orders/${myOrder.id}`);
     }
   };
 

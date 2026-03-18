@@ -5,6 +5,7 @@ import { auth, db } from './firebase';
 import { UserProfile, UserRole } from './types';
 import { LogIn, LogOut, ShoppingBag, Store as StoreIcon, Truck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { handleFirestoreError, OperationType } from './utils';
 
 // Views
 import CustomerView from './components/CustomerView';
@@ -19,63 +20,75 @@ export default function App() {
 
   useEffect(() => {
     const seedData = async () => {
-      const storesSnapshot = await getDocs(collection(db, 'stores'));
-      if (storesSnapshot.empty) {
-        const sampleStores = [
-          {
-            name: "Burger King",
-            address: "Av. Corrientes 1234, CABA",
-            menu: [
-              { id: "bk1", name: "Whopper", price: 12.5, description: "Flame-grilled beef patty with fresh lettuce, tomatoes, onions, and pickles." },
-              { id: "bk2", name: "Chicken Royale", price: 10.0, description: "Crispy chicken breast with creamy mayo and fresh lettuce." },
-              { id: "bk3", name: "Onion Rings", price: 4.5, description: "Golden-brown crispy onion rings." }
-            ]
-          },
-          {
-            name: "Pizza Hut",
-            address: "Av. Santa Fe 2345, CABA",
-            menu: [
-              { id: "ph1", name: "Pepperoni Pizza", price: 15.0, description: "Classic pepperoni with mozzarella cheese and tomato sauce." },
-              { id: "ph2", name: "Margherita Pizza", price: 13.0, description: "Fresh basil, mozzarella, and tomato sauce." },
-              { id: "ph3", name: "Garlic Bread", price: 5.0, description: "Warm bread with garlic butter and herbs." }
-            ]
-          },
-          {
-            name: "Sushi World",
-            address: "Palermo Soho, CABA",
-            menu: [
-              { id: "sw1", name: "Salmon Roll (10pcs)", price: 18.0, description: "Fresh salmon, avocado, and cream cheese." },
-              { id: "sw2", name: "Ebi Tempura", price: 14.0, description: "Crispy shrimp tempura with spicy mayo." },
-              { id: "sw3", name: "Miso Soup", price: 6.0, description: "Traditional Japanese soup with tofu and seaweed." }
-            ]
+      // Only seed if user is authenticated and is the developer/admin
+      if (!user || user.email !== 'devkiller59@gmail.com') return;
+
+      try {
+        const storesSnapshot = await getDocs(collection(db, 'stores'));
+        if (storesSnapshot.empty) {
+          const sampleStores = [
+            {
+              name: "Burger King",
+              address: "Av. Corrientes 1234, CABA",
+              menu: [
+                { id: "bk1", name: "Whopper", price: 12.5, description: "Flame-grilled beef patty with fresh lettuce, tomatoes, onions, and pickles." },
+                { id: "bk2", name: "Chicken Royale", price: 10.0, description: "Crispy chicken breast with creamy mayo and fresh lettuce." },
+                { id: "bk3", name: "Onion Rings", price: 4.5, description: "Golden-brown crispy onion rings." }
+              ]
+            },
+            {
+              name: "Pizza Hut",
+              address: "Av. Santa Fe 2345, CABA",
+              menu: [
+                { id: "ph1", name: "Pepperoni Pizza", price: 15.0, description: "Classic pepperoni with mozzarella cheese and tomato sauce." },
+                { id: "ph2", name: "Margherita Pizza", price: 13.0, description: "Fresh basil, mozzarella, and tomato sauce." },
+                { id: "ph3", name: "Garlic Bread", price: 5.0, description: "Warm bread with garlic butter and herbs." }
+              ]
+            },
+            {
+              name: "Sushi World",
+              address: "Palermo Soho, CABA",
+              menu: [
+                { id: "sw1", name: "Salmon Roll (10pcs)", price: 18.0, description: "Fresh salmon, avocado, and cream cheese." },
+                { id: "sw2", name: "Ebi Tempura", price: 14.0, description: "Crispy shrimp tempura with spicy mayo." },
+                { id: "sw3", name: "Miso Soup", price: 6.0, description: "Traditional Japanese soup with tofu and seaweed." }
+              ]
+            }
+          ];
+          for (const store of sampleStores) {
+            await addDoc(collection(db, 'stores'), store);
           }
-        ];
-        for (const store of sampleStores) {
-          await addDoc(collection(db, 'stores'), store);
         }
+      } catch (err) {
+        // Silently fail seeding if permissions are missing, but log it
+        console.warn("Seeding skipped or failed:", err);
       }
     };
-    seedData();
-  }, []);
+    if (user) seedData();
+  }, [user]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
         setUser(firebaseUser);
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          setProfile(userDoc.data() as UserProfile);
-        } else {
-          // New user, default to customer
-          const newProfile: UserProfile = {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email || '',
-            displayName: firebaseUser.displayName || 'User',
-            role: 'customer',
-          };
-          await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
-          setProfile(newProfile);
+        try {
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (userDoc.exists()) {
+            setProfile(userDoc.data() as UserProfile);
+          } else {
+            // New user, default to customer
+            const newProfile: UserProfile = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              displayName: firebaseUser.displayName || 'User',
+              role: 'customer',
+            };
+            await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
+            setProfile(newProfile);
+          }
+        } catch (err) {
+          handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`);
         }
       } else {
         setUser(null);

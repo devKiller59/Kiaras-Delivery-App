@@ -39,14 +39,14 @@ service cloud.firestore {
         request.auth.uid == resource.data.customerId || 
         request.auth.uid == resource.data.storeId || 
         request.auth.uid == resource.data.deliveryId ||
-        hasRole('delivery') && resource.data.status == 'preparing' // Delivery can see orders to pick up
+        (hasRole('delivery') && resource.data.status == 'out_for_delivery') // Delivery can see orders ready for pickup
       );
       allow create: if isAuthenticated() && hasRole('customer');
       allow update: if isAuthenticated() && (
         request.auth.uid == resource.data.customerId || 
         request.auth.uid == resource.data.storeId || 
         request.auth.uid == resource.data.deliveryId ||
-        hasRole('delivery') && resource.data.status == 'preparing' // Delivery can accept order
+        (hasRole('delivery') && resource.data.status == 'out_for_delivery' && request.resource.data.deliveryId == request.auth.uid) // Delivery can accept order
       );
     }
 

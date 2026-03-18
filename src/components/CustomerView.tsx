@@ -5,6 +5,7 @@ import { Store, Order, UserProfile, MenuItem } from '../types';
 import { ShoppingCart, Clock, MapPin, ChevronRight, Plus, Minus, CheckCircle2, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ChatComponent from './ChatComponent';
+import { handleFirestoreError, OperationType } from '../utils';
 
 export default function CustomerView({ profile }: { profile: UserProfile }) {
   const [stores, setStores] = useState<Store[]>([]);
@@ -17,6 +18,8 @@ export default function CustomerView({ profile }: { profile: UserProfile }) {
     const unsubscribe = onSnapshot(collection(db, 'stores'), (snapshot) => {
       const storesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
       setStores(storesData);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'stores');
     });
     return () => unsubscribe();
   }, []);
@@ -31,6 +34,8 @@ export default function CustomerView({ profile }: { profile: UserProfile }) {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ordersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
       setOrders(ordersData);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'orders');
     });
     return () => unsubscribe();
   }, [profile.uid]);
@@ -92,7 +97,7 @@ export default function CustomerView({ profile }: { profile: UserProfile }) {
       setCart({});
       setSelectedStore(null);
     } catch (err) {
-      console.error("Error placing order:", err);
+      handleFirestoreError(err, OperationType.WRITE, 'orders/chats');
     }
   };
 
